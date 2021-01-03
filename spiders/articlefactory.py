@@ -10,9 +10,6 @@ class ArticlefactirySpider(scrapy.Spider):
     #Starting url for spider
     start_urls = ['http://www.articlesfactory.com/all-categories.html']
 
-    #Pages Crawled
-    pages_crawled = -1
-
     def parse(self, response):
         #Here i'm selecting a tr withing a table which contains all category links
         category_links = response.css("div.txt-main > table:nth-child(3) tr")
@@ -85,7 +82,6 @@ class ArticlefactirySpider(scrapy.Spider):
         if article_body == "" or len(article_body.split()) == 0:
             return None
 
-        self.pages_crawled += 1
         #My json format (Add WORD COUNT SO USE PYTHON TO COUNT WORDS...)
         yield {
             'article': {

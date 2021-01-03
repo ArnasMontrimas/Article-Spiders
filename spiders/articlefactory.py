@@ -1,13 +1,17 @@
 # -*- coding: utf-8 -*-
 import scrapy
 import re
+import w3lib.html
 
 class ArticlefactirySpider(scrapy.Spider):
     #Spider name
-    name = 'articlefactiry'
+    name = 'articlesfactory'
 
     #Starting url for spider
     start_urls = ['http://www.articlesfactory.com/all-categories.html']
+
+    #Pages Crawled
+    pages_crawled = -1
 
     def parse(self, response):
         #Here i'm selecting a tr withing a table which contains all category links
@@ -18,8 +22,9 @@ class ArticlefactirySpider(scrapy.Spider):
             #Inside the table row there is a 'td' inside the 'td' there is 'a' tags with links to category pages
             #We select all of those 'a' tags withing the 'tr' loop through all of them
             for link_a in link_tr.css("a::attr(href)"):
-                #Now enter each link when we enter it inside the link we run a function 'enter-article'
+                #Go to the next page on the next page we enter articles again and loop for 10 pages
                 yield response.follow(link_a.get(), self.enter_article)
+
 
     def enter_article(self, response):
         #Here i'm selecting 'div.txt-main' tag which contains a tags with links to articles
@@ -28,13 +33,17 @@ class ArticlefactirySpider(scrapy.Spider):
         #Here i'm looping through each link and enter it when i enter the link i run a function 'extract_article'
         for link_a in article_links.css("a.h2-center::attr(href)"):
             yield response.follow(link_a.get(), self.extract_article)
-            
-        #TODO This will only enter articles on the first page (We want to enter articles up to 10 pages (Leaving this for later))
+
+    
     def extract_article(self, response):
         article_heading = response.css("h1.h2::text").get()
         article_description = response.css("div.txt-main > div.bottom-link ~ p:nth-of-type(2)::text").get()
         article_author = response.css("a.small-link::text").get()
-        byline = "ArticleFactory"
+        article_category = response.css(".bottom-link > a:nth-child(1)::text").get()
+        article_date = response.css(".bottom-link > a:nth-child(2)::text").get()
+        byline = "articlesfactory"
+
+        encoding = "iso-8859-1"
 
         #Some if statements to avoid erorrs if nothing found on certain pages that dont follow the same structure as others
         if article_description == None or article_description == "" or article_description == "<b></b>":
@@ -60,25 +69,42 @@ class ArticlefactirySpider(scrapy.Spider):
             string = ""
             joined += string.join(body)
 
-        #Format the body
-        filtered = re.sub('(<p>|</p>|<strong>|</strong>|<a.*?</a>|<sup>|</sup>|<u>|</u>|href=|<ul>|</ul>|<li>|</li>|<ol>|</ol>|<em>|</em>|<br>|\r|\n|\t|\r\n)', '', joined)
+        white_space = w3lib.html.HTML5_WHITESPACE
 
-        #If Output is CSV you dont need this
+        filter = f"\r|\n|\t|\r\n|{white_space}"
+        #filter out escaped characters
+        filtered = re.sub(filter, "", joined)
+
+        #Change double quotes to single quotes
         filtered = re.sub("\"", "\'", filtered)
-        article_body = filtered
-
+        
+        #Remove HTML tags
+        article_body = w3lib.html.remove_tags(filtered)
+        
         #Break out of recursive function if empty body text or word count for article ends up being 0
         if article_body == "" or len(article_body.split()) == 0:
-            return False
+            return None
 
+        self.pages_crawled += 1
         #My json format (Add WORD COUNT SO USE PYTHON TO COUNT WORDS...)
-        #TODO ADD DATE OF THE ARTICLE!!!
         yield {
-            'heading': article_heading.strip(),
-            'author': article_author.strip(),
-            'description': article_description.strip(),
-            'word-count': len(article_body.split()),
-            'body': article_body.strip(),
-            'byline': byline.strip(),
-            'origin': response.url.strip()
-        }
+            'article': {
+                'title': article_heading.strip(),
+                'author': article_author.strip(),
+                'pub_date': article_date.strip(),
+                'word-count': len(article_body.split()),
+                'summary': article_description.strip(),
+                'body': article_body.strip(),
+            },
+            'article_secondary': {
+                'category': article_category.strip(),
+                'site_name': byline.strip(),
+                'images': {
+                    'url': None
+                }
+            },
+            'article_tertiary': {
+                'html': joined.strip(),
+                'origin': response.url.strip(),
+                'encoding': encoding
+            },

@@ -62,13 +62,26 @@ class BrandpointSpider(scrapy.Spider):
 
         #My json format
         yield {
-            'heading': article_heading.strip(),
-            'date': posted_on.strip(),
-            'words': word_count.strip(),
-            'image': img_src.strip(),
-            'body': article_text.strip(),
-            'byline': byline.strip(),
-            'origin': response.url.strip()
+            'article': {
+                'title': article_heading.strip(),
+                'author': ""
+                'pub_date': posted_on.strip(),
+                'word_count': word_count.strip(),
+                'summary': ""
+                'body': article_text.strip(),
+            }
+            'article_secondary': {
+                'cateogry': ""
+                'site_name': byline.strip(),
+                'images': {
+                    'url': img_src.strip()
+                },
+            }
+            'article_tertiary': {
+                'html': "",
+                'origin': response.url.strip(),
+                'encoding': ""
+            }
         }
 
 

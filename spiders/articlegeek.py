@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import scrapy
 import re
+import w3lib.html
 
 class ArticlegeekSpider(scrapy.Spider):
     #Spider name
@@ -33,6 +34,12 @@ class ArticlegeekSpider(scrapy.Spider):
         heading = response.css("div[id='content'] h1::text").get()
         author = response.css("div.author").css("a::text").get()
         main_content = response.css("div[id='content']").css("div.author ~ p:not(p[align='center'])")
+        encoding = "ISO-8859-1"
+        category = response.css("#content > a:nth-child(3)::text").get()
+        description = response.css("head > meta[name='Description']::attr(content)").get()
+
+        if description == None:
+            description = ""
 
         byline = "ArticleGeek"
         body = ""
@@ -51,24 +58,46 @@ class ArticlegeekSpider(scrapy.Spider):
             string = ""
             joined += string.join(body)
 
-        #Format body
-        filtered = re.sub('(<p>|</p>|<strong>|</strong>|<a.*?</a>|<sup>|</sup>|<u>|</u>|href=|<ul>|</ul>|<li>|</li>|<ol>|</ol>|<em>|</em>|<br>|\r|\n|\t|\r\n)', '', joined)
+        #Html5 White Space
+        white_space = w3lib.html.HTML5_WHITESPACE
 
-        #If Output is CSV you dont need this
-        filtered = re.sub("\"", '\'', filtered)
-        body_text = filtered
+        #The filter
+        filter = f"\r|\n|\t|\r\n|{white_space}"
+        
+        #filter out escaped characters
+        filtered = re.sub(filter, "", joined)
+
+        #Change double quotes to single quotes
+        filtered = re.sub("\"", "\'", filtered)
+        
+        #Remove HTML tags
+        body_text = w3lib.html.remove_tags(filtered)
 
         #Check that author is not None
         if author == None:
             author = "No Author"
 
-        #My json format (Add WORD COUNT SO USE PYTHON TO COUNT WORDS.....)
+        #My json format
         yield {
-            'heading': heading.strip(),
-            'author': "By: "+author.strip(),
-            'word-count': len(body_text.split()),
-            'body': body_text.strip(),
-            'byline': byline.strip(),
-            'origin': response.url.strip()
+            'article': {
+                'title': heading.strip(),
+                'author': author.strip(),
+                'pub_date': "",
+                'word_count': len(body_text.split()),
+                'summary': description.strip(),
+                'body': body_text.strip()
+            },
+            'article_secondary': {
+                'cateogry': category.strip(),
+                'site_name': byline.strip(),
+                'images': {
+                    'url': ""
+                },
+            },
+            'article_tertiary': {
+                'html': joined.strip(),
+                'origin': response.url.strip(),
+                'encoding': encoding.strip()
+            }
         }
 

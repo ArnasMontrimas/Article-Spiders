@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import scrapy
 import re
+import w3lib.html
 
 class BrandpointSpider(scrapy.Spider):
     #Spider name
@@ -9,12 +10,17 @@ class BrandpointSpider(scrapy.Spider):
     #Starting ulr for spider
     start_urls = ['https://www.brandpointcontent.com//']
 
+    #Article categories
+    article_category = ""
+
     def parse(self, response):
         category_links = response.css("div.col-md-4 div.row div.col-md-12 div.row div")
 
         #This gets me all the category links(hrefs)
         for link in category_links:
             for link_a in link.css("a::attr(href)"):
+                #Get the category which we are currently in
+                self.article_category = re.sub("/|category", "", link_a.get())
                 #This prints out all the href links
                 #print(link_a.get())
                 yield response.follow(link_a.get(), self.enter_article)
@@ -44,6 +50,14 @@ class BrandpointSpider(scrapy.Spider):
         posted_on = heading.css("div span.mr-2::text").get()
         word_count = heading.css("div span.ml-2::text").get()
         
+        #Char set
+        encoding = response.css("head > meta[charset]::attr(charset)").get()
+
+        #Description
+        article_description = response.css("head > meta[name='description']::attr(content)").get()
+
+        if(article_description == None):
+            article_description = ""
 
         #Body subdivided into individual components
         img_src = body.css("div.col-md-9 > div:nth-child(1) img::attr(src)").get()
@@ -52,35 +66,45 @@ class BrandpointSpider(scrapy.Spider):
         body_text_para = body.css("div.col-md-9 > div.mt-4 p").getall()
         string = ""
         joined = string.join(body_text_para)
-        filtered = re.sub('(<p>|</p>|<strong>|</strong>|<a.*?</a>|<sup>|</sup>|<u>|</u>|href=|<ul>|</ul>|<li>|</li>|<ol>|</ol>|<em>|</em>|<br>)', '', joined)
-        
-        #If Output is CSV you dont need this
-        filtered = re.sub('"','\'', filtered)
-        article_text = filtered
 
-        byline = "Brandpoint" #Basically who made this artice (must be encluded for legal reasons)
+        #Html5 White Space
+        white_space = w3lib.html.HTML5_WHITESPACE
+
+        #The filter
+        filter = f"\r|\n|\t|\r\n|{white_space}"
+        
+        #filter out escaped characters
+        filtered = re.sub(filter, "", joined)
+
+        #Change double quotes to single quotes
+        filtered = re.sub("\"", "\'", filtered)
+        
+        #Remove HTML tags
+        article_text = w3lib.html.remove_tags(filtered)
+
+        byline = "Brandpoint" #website which website is on (must be encluded for legal reasons)
 
         #My json format
         yield {
             'article': {
                 'title': article_heading.strip(),
-                'author': ""
+                'author': "BrandPoint",
                 'pub_date': posted_on.strip(),
                 'word_count': word_count.strip(),
-                'summary': ""
+                'summary': article_description.strip(),
                 'body': article_text.strip(),
-            }
+            },
             'article_secondary': {
-                'cateogry': ""
+                'cateogry': self.article_category.strip(),
                 'site_name': byline.strip(),
                 'images': {
                     'url': img_src.strip()
                 },
-            }
+            },
             'article_tertiary': {
-                'html': "",
+                'html': joined.strip(),
                 'origin': response.url.strip(),
-                'encoding': ""
+                'encoding': encoding.strip()
             }
         }
 

@@ -82,7 +82,7 @@ class ArticlefactirySpider(scrapy.Spider):
         if article_body == "" or len(article_body.split()) == 0:
             return None
 
-        #My json format (Add WORD COUNT SO USE PYTHON TO COUNT WORDS...)
+        #My json format
         yield {
             'article': {
                 'title': article_heading.strip(),
@@ -90,17 +90,18 @@ class ArticlefactirySpider(scrapy.Spider):
                 'pub_date': article_date.strip(),
                 'word-count': len(article_body.split()),
                 'summary': article_description.strip(),
-                'body': article_body.strip(),
+                'body': article_body.strip()
             },
             'article_secondary': {
                 'category': article_category.strip(),
                 'site_name': byline.strip(),
                 'images': {
-                    'url': None
+                    'url': ""
                 }
             },
             'article_tertiary': {
                 'html': joined.strip(),
                 'origin': response.url.strip(),
                 'encoding': encoding
-            },
+            }
+        }

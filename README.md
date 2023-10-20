@@ -1,5 +1,5 @@
 ## About
-#### Article Scraping (Scrapy Spiders) (ABADONED)
+#### Article Scraping (Scrapy Spiders)
 This project was started out of curiosity for web scraping, after searching online how to do web scraping with php, javascript i didnt really like what they had to offer and landed on python with scrapy which seemed to have good documentation ease of use (compared to others) and alot of functionallity.
 
 I have created 4 spiders, each spider crawls 1 website, the spiders first retrieve all category links, they then follow those categories enter all articles (On the first page, which ussualy are the most recent ones) and extract the article, the information wich i get is: title,author,publication date,word count,summary,body,category,images,original link to article. Some of the information is not always present so i simply subsitute with null value.
